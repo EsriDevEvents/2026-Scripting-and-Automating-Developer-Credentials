@@ -1,0 +1,22 @@
+{
+  "name": "api-key-rotation",
+  "version": "1.0.0",
+  "description": "Demo of a script to rotate API keys",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx index.js"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@esri/arcgis-rest-request": "^4.3.0",
+    "@types/node": "^22.13.5",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@tsconfig/node22": "^22.0.0",
+    "tsx": "^4.19.3"
+  }
+}
