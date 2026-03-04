@@ -22,13 +22,15 @@ def is_client_authorized(req) -> bool:
     data = req.get_json(silent=True) or {}
     return data.get("nonce") == 1234
 
-
+### server application setup ### 
 def create_app():
+    #         
     load_dotenv()
 
     app = Flask(__name__)
     CORS(app)
 
+    # Load configuration from server-configuration.json, which should be in the same directory as this app.py 
     config_path = (Path(__file__).resolve().parent) / "server-configuration.json"
     
     # Load your server-configuration.json (same as Node)
@@ -64,8 +66,6 @@ def create_app():
             return jsonify(auth.error_response(403, "Unauthorized.")), 403
 
         data = request.get_json(silent=True) or {}
-        # Node logic:
-        # const forceRefresh = (request.body.force ?? "0") == "1"
         force_refresh = str(data.get("force", "0")) == "1"
 
         try:
