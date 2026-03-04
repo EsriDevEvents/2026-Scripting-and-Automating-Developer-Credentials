@@ -1,18 +1,16 @@
 import os
 import json
+
+from pathlib import Path
 from datetime import timedelta
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_session import Session
+
 from dotenv import load_dotenv
 
 import auth
-
-# Your Node app imports: const esriAppAuth = require("./auth")
-# We'll mirror that with a Python module named auth.py that provides:
-#   get_token(force_refresh: bool) -> dict
-#   error_response(status: int, message: str) -> dict
 
 
 def is_client_authorized(req) -> bool:
@@ -31,8 +29,10 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
+    config_path = (Path(__file__).resolve().parent) / "server-configuration.json"
+    
     # Load your server-configuration.json (same as Node)
-    with open("server-configuration.json", "r", encoding="utf-8") as f:
+    with config_path.open("r", encoding="utf-8") as f:
         configuration = json.load(f)
 
     token_exp_minutes = int(configuration.get("tokenExpirationMinutes", 60))
