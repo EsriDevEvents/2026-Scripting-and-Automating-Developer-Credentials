@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>App Auth Client</title>
+    <base href="/" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- <link rel="icon" type="image/x-icon" href="favicon.ico" /> -->
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" />
+    <script src="https://cdn.jsdelivr.net/npm/ol@v10.8.0/dist/ol.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ol-mapbox-style@13.3.0/dist/olms.js"></script>
+    <script src="https://unpkg.com/ol-popup@5.1.1/dist/ol-popup.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/ol-popup@5.1.1/src/ol-popup.css" />
+
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+
+      #map canvas {
+        cursor: crosshair;
+      }
+
+      .ol-popup {
+        width: 250px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script type="module">
+      const appTokenURL = "https://192.168.1.67:3080/auth";
+      const tokenData = { nonce: 1234, force: 1 };
+      let accessToken;
+      const tokenResponse = await fetch(appTokenURL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(tokenData),
+      });
+      if (tokenResponse.ok) {
+        const responseJSON = await tokenResponse.json();
+        accessToken = responseJSON.access_token;
+        console.log("Received token:", accessToken);
+      } else {
+        console.error("Failed to fetch token:", tokenResponse.statusText);
+      }
+
+      const map = new ol.Map({
+        target: "map",
+      });
+
+      map.setView(
+        new ol.View({
+          center: ol.proj.fromLonLat([-116.53823627116388, 33.8268008979677]),
+          zoom: 14,
+        }),
+      );
+
+      const basemapId = "arcgis/navigation";
+
+      const basemapURL = `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/${basemapId}?token=${accessToken}`;
+
+      olms.apply(map, basemapURL).then(function (map) {
+        const popup = new Popup();
+        map.addOverlay(popup);
+
+        map.on("click", async (event) => {
+          const lonLat = ol.proj.toLonLat(event.coordinate);
+
+          const geoEnrichmentURL =
+            "https://geoenrich.arcgis.com/arcgis/rest/services/World/geoenrichmentserver/GeoEnrichment/enrich";
+
+          const params = new URLSearchParams();
+          params.append("f", "json");
+          params.append("token", accessToken);
+          params.append(
+            "studyAreas",
+            JSON.stringify([{ geometry: { x: lonLat[0], y: lonLat[1] } }]),
+          );
+          params.append(
+            "analysisVariables",
+            JSON.stringify([
+              "PsychographicsShopping.MP28779a_B",
+              "entertainment.X9005_X",
+              "transportation.X7027_X",
+            ]),
+          );
+
+          const opts = {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: params,
+            redirect: "follow",
+          };
+          const enrichResponse = await fetch(geoEnrichmentURL, opts);
+
+          const enrichResponseJSON = await enrichResponse.json();
+          const featureSet = enrichResponseJSON.results[0].value.FeatureSet;
+
+          let message;
+          if (featureSet.length > 0 && featureSet[0].features.length > 0) {
+            const attributes = featureSet[0].features[0].attributes;
+            message =
+              "<b>Data for a 1 mile search radius</b><br>" +
+              [
+                `Buys Natural Products: ${attributes.MP28779a_B}`,
+                `Membership fees for Social Clubs: ${attributes.X9005_X}`,
+                `Auto/Truck Rental on Trips: ${attributes.X7027_X}`,
+              ].join("<br>");
+          } else {
+            message = "Data not available for this location.";
+          }
+          popup.show(event.coordinate, message);
+        });
+
+        // Add Esri attribution
+        // Learn more in https://esriurl.com/attribution
+        const source = map.getLayers().item(0).getSource();
+        const poweredByEsriString =
+          "Powered by <a href='https://www.esri.com/en-us/home' target='_blank'>Esri</a> | ";
+
+        const attributionFn = source.getAttributions();
+        if (attributionFn) {
+          source.setAttributions((ViewStateLayerStateExtent) => {
+            return [
+              poweredByEsriString,
+              ...attributionFn(ViewStateLayerStateExtent),
+            ];
+          });
+        } else source.setAttributions(poweredByEsriString);
+      });
+    </script>
+  </body>
+</html>

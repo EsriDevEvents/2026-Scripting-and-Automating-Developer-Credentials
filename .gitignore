@@ -53,8 +53,12 @@ Thumbs.db
 *.tmp
 tmp/
 temp/
+.flask_sessions/
+__pycache__
+.ArcGISTokenCache.json
 
 # Optional: lock files from package managers you don't use
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+python/app-config.json
