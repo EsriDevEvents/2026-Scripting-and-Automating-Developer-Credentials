@@ -35,8 +35,7 @@ coverage/
 
 # Environment variables
 .env
-.env.*
-!.env.example
+!.env.template
 
 # OS and editor files
 .DS_Store
