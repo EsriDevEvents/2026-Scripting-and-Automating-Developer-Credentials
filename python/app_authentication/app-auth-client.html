@@ -76,77 +76,89 @@
 
       const basemapURL = `https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles/${basemapId}?token=${accessToken}`;
 
-      olms.apply(map, basemapURL).then(function (map) {
-        const popup = new Popup();
-        map.addOverlay(popup);
+      await olms.apply(map, basemapURL);
 
-        map.on("click", async (event) => {
-          const lonLat = ol.proj.toLonLat(event.coordinate);
+      const popup = new Popup();
+      map.addOverlay(popup);
 
-          const geoEnrichmentURL =
-            "https://geoenrich.arcgis.com/arcgis/rest/services/World/geoenrichmentserver/GeoEnrichment/enrich";
+      const getAddress = async (atCoordinate) => {
+        const geocodeURL = `https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?f=json&token=${accessToken}&location=${atCoordinate[0]},${atCoordinate[1]}`;
+        const geocodeResponse = await fetch(geocodeURL);
+        if (geocodeResponse.ok) {
+          const geocodeJSON = await geocodeResponse.json();
+          return geocodeJSON.address.ShortLabel;
+        }
+        console.error("Failed to reverse geocode:", geocodeResponse.statusText);
+        return "Unknown location";
+      };
 
-          const params = new URLSearchParams();
-          params.append("f", "json");
-          params.append("token", accessToken);
-          params.append(
-            "studyAreas",
-            JSON.stringify([{ geometry: { x: lonLat[0], y: lonLat[1] } }]),
-          );
-          params.append(
-            "analysisVariables",
-            JSON.stringify([
-              "PsychographicsShopping.MP28779a_B",
-              "entertainment.X9005_X",
-              "transportation.X7027_X",
-            ]),
-          );
+      map.on("click", async (event) => {
+        const lonLat = ol.proj.toLonLat(event.coordinate);
 
-          const opts = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: params,
-            redirect: "follow",
-          };
-          const enrichResponse = await fetch(geoEnrichmentURL, opts);
+        const geoEnrichmentURL =
+          "https://geoenrich.arcgis.com/arcgis/rest/services/World/geoenrichmentserver/GeoEnrichment/enrich";
 
-          const enrichResponseJSON = await enrichResponse.json();
-          const featureSet = enrichResponseJSON.results[0].value.FeatureSet;
+        const params = new URLSearchParams();
+        params.append("f", "json");
+        params.append("token", accessToken);
+        params.append(
+          "studyAreas",
+          JSON.stringify([{ geometry: { x: lonLat[0], y: lonLat[1] } }]),
+        );
+        params.append(
+          "analysisVariables",
+          JSON.stringify([
+            "PsychographicsShopping.MP28779a_B",
+            "entertainment.X9005_X",
+            "transportation.X7027_X",
+          ]),
+        );
 
-          let message;
-          if (featureSet.length > 0 && featureSet[0].features.length > 0) {
-            const attributes = featureSet[0].features[0].attributes;
-            message =
-              "<b>Data for a 1 mile search radius</b><br>" +
-              [
-                `Buys Natural Products: ${attributes.MP28779a_B}`,
-                `Membership fees for Social Clubs: ${attributes.X9005_X}`,
-                `Auto/Truck Rental on Trips: ${attributes.X7027_X}`,
-              ].join("<br>");
-          } else {
-            message = "Data not available for this location.";
-          }
-          popup.show(event.coordinate, message);
-        });
+        const opts = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params,
+          redirect: "follow",
+        };
+        const enrichResponse = await fetch(geoEnrichmentURL, opts);
 
-        // Add Esri attribution
-        // Learn more in https://esriurl.com/attribution
-        const source = map.getLayers().item(0).getSource();
-        const poweredByEsriString =
-          "Powered by <a href='https://www.esri.com/en-us/home' target='_blank'>Esri</a> | ";
+        const enrichResponseJSON = await enrichResponse.json();
+        const featureSet = enrichResponseJSON.results[0].value.FeatureSet;
 
-        const attributionFn = source.getAttributions();
-        if (attributionFn) {
-          source.setAttributions((ViewStateLayerStateExtent) => {
-            return [
-              poweredByEsriString,
-              ...attributionFn(ViewStateLayerStateExtent),
-            ];
-          });
-        } else source.setAttributions(poweredByEsriString);
+        let message;
+        if (featureSet.length > 0 && featureSet[0].features.length > 0) {
+          const attributes = featureSet[0].features[0].attributes;
+          const address = await getAddress(lonLat);
+          message =
+            `<strong>${address}</strong><br><br><b>Data for a 1 mile search radius</b><br>` +
+            [
+              `Buys Natural Products: ${attributes.MP28779a_B}`,
+              `Membership fees for Social Clubs: ${attributes.X9005_X}`,
+              `Auto/Truck Rental on Trips: ${attributes.X7027_X}`,
+            ].join("<br>");
+        } else {
+          message = "Data not available for this location.";
+        }
+        popup.show(event.coordinate, message);
       });
+
+      // Add Esri attribution
+      // Learn more in https://esriurl.com/attribution
+      const source = map.getLayers().item(0).getSource();
+      const poweredByEsriString =
+        "Powered by <a href='https://www.esri.com/en-us/home' target='_blank'>Esri</a> | ";
+
+      const attributionFn = source.getAttributions();
+      if (attributionFn) {
+        source.setAttributions((ViewStateLayerStateExtent) => {
+          return [
+            poweredByEsriString,
+            ...attributionFn(ViewStateLayerStateExtent),
+          ];
+        });
+      } else source.setAttributions(poweredByEsriString);
     </script>
   </body>
 </html>
