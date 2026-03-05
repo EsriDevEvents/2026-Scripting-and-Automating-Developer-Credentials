@@ -46,7 +46,7 @@ const tokens = await request(
 );
 
 /**
- * Will contain the itemId and client id op all tokens. Note that each API key
- * item can have up to 2 tokens so each item might appeas twice in the list.
+ * Will contain the itemId and client id of all tokens. Note that each API key
+ * item can have up to 2 tokens so each item might appear twice in the list.
  */
 console.log(tokens);

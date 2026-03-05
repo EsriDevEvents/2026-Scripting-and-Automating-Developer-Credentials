@@ -4,25 +4,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-  <title>ArcGIS Maps SDK for JavaScript Tutorials: Find nearby places and details</title>
+  <title>Application Credentials Demo</title>
   <style>
     html,
     body {
       height: 100%;
       margin: 0;
     }
-
-
-    #category-combobox {
-      margin: 5px;
-    }
-
-    #contents {
-      --calcite-shell-panel-min-width: 340px;
-    }
   </style>
 
   <script>
+    var currentTokenExpiration = new Date("{{tokenExpiration}}");
     var esriConfig = {
       apiKey: "{{accessToken}}",
     };
@@ -36,285 +28,83 @@
 <body>
 
   <calcite-shell>
-
-    <arcgis-map basemap="arcgis/navigation" center="-118.46651, 33.98621" zoom="13">
-      <arcgis-zoom slot="top-left"></arcgis-zoom>
-    </arcgis-map>
-
-    <calcite-shell-panel slot="panel-start" width="l" id="contents">
-      <calcite-panel heading="Application credentials demo">
-        <calcite-block expanded heading="Place search" icon-start="search">
-          <calcite-label>
-            Category filter
-            <calcite-combobox id="category-combobox" placeholder="Filter by category" overlay-positioning="fixed" selection-mode="single">
-              <calcite-combobox-item value="4d4b7104d754a06370d81259" heading="Arts and Entertainment"></calcite-combobox-item>
-              <calcite-combobox-item value="4d4b7105d754a06375d81259"
-                heading="Business and Professional Services"></calcite-combobox-item>
-              <calcite-combobox-item value="63be6904847c3692a84b9b9a" heading="Community and Government"></calcite-combobox-item>
-              <calcite-combobox-item value="63be6904847c3692a84b9bb5" heading="Dining and Drinking"></calcite-combobox-item>
-              <calcite-combobox-item value="63be6904847c3692a84b9bb9" heading="Health and Medicine"></calcite-combobox-item>
-              <calcite-combobox-item selected value="4d4b7105d754a06377d81259"
-                heading="Landmarks and Outdoors"></calcite-combobox-item>
-              <calcite-combobox-item value="4d4b7105d754a06378d81259" heading="Retail"></calcite-combobox-item>
-              <calcite-combobox-item value="4f4528bc4b90abdf24c9de85" heading="Sports and Recreation"></calcite-combobox-item>
-              <calcite-combobox-item value="4d4b7105d754a06379d81259" heading="Travel and Transportation"></calcite-combobox-item>
-            </calcite-combobox>
-          </calcite-label>
-        </calcite-block>
-        
-        <calcite-block expanded heading="Results" icon-start="list">
-          <calcite-flow id="flow">
-            <calcite-flow-item> 
-              <calcite-list id="results">
-                <calcite-notice open>
-                  <div slot="message">Click on the map to search for nearby places</div>
-                </calcite-notice>
-              </calcite-list>
-            </calcite-flow-item>
-          </calcite-flow>      
-        </calcite-block>
-      </calcite-panel>
-    </calcite-shell-panel>
+    <calcite-panel heading="Application Credentials Demo" id="panel-start">
+      <arcgis-map basemap="arcgis/navigation" center="-118.46651, 33.98621" zoom="13">
+        <arcgis-zoom slot="top-left"></arcgis-zoom>
+        <arcgis-search slot="top-right"></arcgis-search>
+      </arcgis-map>
+    </calcite-panel>
   </calcite-shell>
 
   <script type="module">
     const [
-      Circle,
-      Graphic,
-      GraphicsLayer,
-      Map,
-      places,
-      FetchPlaceParameters,
-      PlacesQueryParameters,
       config,
+      FeatureLayer,
     ] = await $arcgis.import([
-      "@arcgis/core/geometry/Circle.js",
-      "@arcgis/core/Graphic.js",
-      "@arcgis/core/layers/GraphicsLayer.js",
-      "@arcgis/core/Map.js",
-      "@arcgis/core/rest/places.js",
-      "@arcgis/core/rest/support/FetchPlaceParameters.js",
-      "@arcgis/core/rest/support/PlacesQueryParameters.js",
       "@arcgis/core/config.js",
+      "@arcgis/core/layers/FeatureLayer.js",
     ]);
 
-    const viewElement = document.querySelector("arcgis-map");
+    const EXPIRATION_THRESHOLD = 5 * 60 * 1000; // in milliseconds (default is 5 minutes)
+    const EXPIRATION_CHECK_INTERVAL = 1 * 60 * 1000; // in milliseconds (default is 1 minute)
+    const BASEMAP_SESSION_DURATION = 12 * 60 * 60; // in seconds (default is 12 hours, set to 1 hour for testing purposes)
+    // Function to refresh the token by calling the /token endpoint on our express server
+    async function refreshToken() {
+      try {
+        const response = await fetch('/token', { method: 'POST' });
+        if (response.ok) {
+          const data = await response.json();
+          config.apiKey = data.accessToken;
+          currentTokenExpiration = new Date(data.tokenExpiration);
+          console.log('Token refreshed successfully');
+        }
+      } catch (e) {
+        console.error('Failed to refresh token', e);
+      }
+    }
 
-    let flowItem; // Info panel for place information
-    let clickPoint; // Clicked point on the map
-    let activeCategory = "4d4b7105d754a06377d81259"; // Landmarks and Outdoors category
+    // Function to check if the token is expired or about to expire
+    function isTokenExpired() {
+      return new Date().getTime() > currentTokenExpiration.getTime() - EXPIRATION_THRESHOLD;
+    }
 
+    // Check and refresh token every minute
+    setInterval(() => {
+      if (isTokenExpired()) {
+        refreshToken();
+      } else {
+        console.log('Token is still valid');
+      }
+    }, EXPIRATION_CHECK_INTERVAL);
+
+    // Refresh token when the page becomes visible again
+    document.addEventListener("visibilitychange", (event) => {
+      if (document.visibilityState === "visible") {
+        refreshToken(event);
+      }
+    });
+
+    // Set up session-based credentials for basemap access this will auto-refresh the basemap session with the configured API key
     config.sessions = {
       basemap: {
         enabled: true,
         styleFamily: "arcgis", // basemap style family for the session, e.g. "arcgis" or "open"
         autoRefresh: true, // automatically get new token at end of duration
-        //duration: 43200, // 12 hours
-        duration: 360, // 1 hour (for testing purposes, set to a shorter duration. Default is 12 hours)
+        duration: BASEMAP_SESSION_DURATION
       },
     };
 
-    // GraphicsLayer for places features
-    const placesLayer = new GraphicsLayer({
-      id: "placesLayer",
+    // Wait for the view to be ready and add our feature layer
+    const viewElement = document.querySelector("arcgis-map");
+    await viewElement.componentOnReady();
+
+    const fuelStationsLayer = new FeatureLayer({
+      portalItem: {
+        id: "dec22f8a20234893b312bf6c131e13f1",
+      },
     });
-    // GraphicsLayer for map buffer
-    const bufferLayer = new GraphicsLayer({
-      id: "bufferLayer",
-    });
-
-    // Info panel interactions
-    const categoryCombobox = document.getElementById("category-combobox");
-    const resultsList = document.getElementById("results");
-    const flow = document.getElementById("flow");
-
-    viewElement.map= new Map({
-      basemap: "arcgis/navigation",
-      layers: [placesLayer, bufferLayer]
-    });
-    // Clear graphics and results from the previous place search
-    function clearGraphics() {
-      bufferLayer.removeAll(); // Remove graphics from GraphicsLayer of previous buffer
-      placesLayer.removeAll(); // Remove graphics from GraphicsLayer of previous places search
-      resultsList.innerHTML = "";
-      if (flowItem) flowItem.remove();
-    }
-
-    // View on-click event to capture places search location
-    viewElement.addEventListener("arcgisViewClick", (event) => {
-      clearGraphics();
-      clickPoint = event.detail.mapPoint;
-      // Pass point to the showPlaces() function
-      clickPoint && showPlaces(clickPoint);
-    });
-
-    // Event listener for category changes
-    categoryCombobox.addEventListener("calciteComboboxChange", () => {
-      activeCategory = categoryCombobox.value;
-      clearGraphics();
-      // Pass point to the showPlaces() function with new category value
-      clickPoint && showPlaces(clickPoint);
-    });
-
-    // Display map click search area and pass to places service
-    async function showPlaces(placePoint) {
-      // Buffer graphic represents click location and search radius
-      const circleGeometry = new Circle({
-        center: placePoint,
-        geodesic: true,
-        numberOfPoints: 250,
-        radius: 500, // set radius to 500 meters
-        radiusUnit: "meters",
-      });
-      const circleGraphic = new Graphic({
-        geometry: circleGeometry,
-        symbol: {
-          type: "simple-fill", // autocasts as SimpleFillSymbol
-          style: "solid",
-          color: [3, 140, 255, 0.1],
-          outline: {
-            width: 1,
-            color: [3, 140, 255],
-          },
-        },
-      });
-      // Add buffer graphic to the view
-      bufferLayer.graphics.add(circleGraphic);
-
-      // Parameters for queryPlacesNearPoint()
-      const placesQueryParameters = new PlacesQueryParameters({
-        categoryIds: [activeCategory],
-        radius: 500, // set radius to 500 meters
-        point: placePoint,
-        icon: "png",
-        pageSize: 20,
-      });
-      // The results variable represents the PlacesQueryResult
-      const results = await places.queryPlacesNearPoint(placesQueryParameters);
-      // Pass the PlacesQueryResult to the tabulatePlaces() function
-      tabulatePlaces(results);
-    }
-
-    // Investigate the individual PlaceResults from the array of results
-    // from the PlacesQueryResult and process them
-    function tabulatePlaces(results) {
-      results.results.forEach((placeResult) => {
-        // Pass each result to the addResult() function
-        addResult(placeResult);
-      });
-    }
-
-    // Visualize the places on the map based on category
-    // and list them on the info panel with more details
-    async function addResult(place) {
-      const placeGraphic = new Graphic({
-        geometry: place.location,
-        symbol: {
-          type: "picture-marker",
-          url: place.icon.url,
-          width: 15,
-          height: 15,
-        },
-      });
-      // Add each graphic to the GraphicsLayer
-      placesLayer.graphics.add(placeGraphic);
-
-      const listItem = document.createElement("calcite-list-item");
-      listItem.label = place.name;
-      listItem.description = `
-          ${place.categories[0].label} -
-          ${Number((place.distance / 500).toFixed(1))} km`;
-
-      // If a place in the info panel is clicked
-      // then open the feature's popup
-      listItem.addEventListener("click", async () => {
-        viewElement.openPopup({
-          location: place.location,
-          title: place.name,
-        });
-        // Move the view to center on the selected place feature
-        viewElement.goTo(placeGraphic);
-
-        // Fetch more details about each place based
-        // on the place ID with all possible fields
-        const fetchPlaceParameters = new FetchPlaceParameters({
-          placeId: place.placeId,
-          requestedFields: ["all"],
-        });
-        // Pass the FetchPlaceParameters and the location of the
-        // selected place feature to the getDetails() function
-        getDetails(fetchPlaceParameters);
-
-      });
-
-      resultsList.appendChild(listItem);
-
-    }
-
-    // Get place details and display in the info panel
-    async function getDetails(fetchPlaceParameters) {
-      // Get place details
-      const result = await places.fetchPlace(fetchPlaceParameters);
-
-      const placeDetails = result.placeDetails;
-      // Set-up panel on the info for more place information
-      flowItem = document.createElement("calcite-flow-item");
-      flow.append(flowItem);
-      flowItem.heading = placeDetails.name;
-      flowItem.description = placeDetails.categories[0].label;
-      const flowItems = flow.querySelectorAll("calcite-flow-item");
-      // remove selection from other flow items
-      flowItems.forEach((item) => (item.selected = false));
-      // set current flow item to selected
-      flowItem.selected = true;
-      // Pass attributes from each place to the setAttribute() function
-      setAttribute("Address", "map-pin", `${placeDetails.address.streetAddress || ''},
-        ${[placeDetails.address.locality || '', placeDetails.address.region || '', placeDetails.address.postcode || ""].filter(Boolean).join(', ')}`);
-      setAttribute("Phone", "mobile", placeDetails.contactInfo.telephone);
-      setAttribute("Email", "email-address", placeDetails.contactInfo.email);
-      setAttribute(
-        "Facebook",
-        "speech-bubble-social",
-        placeDetails.socialMedia.facebookId
-          ? `www.facebook.com/${placeDetails.socialMedia.facebookId}`
-          : null,
-      );
-      setAttribute(
-        "X",
-        "speech-bubbles",
-        placeDetails.socialMedia.twitter ? `www.x.com/${placeDetails.socialMedia.twitter}` : null,
-      );
-      setAttribute(
-        "Instagram",
-        "camera",
-        placeDetails.socialMedia.instagram
-          ? `www.instagram.com/${placeDetails.socialMedia.instagram}`
-          : null,
-      );
-
-      // If another place is clicked in the info panel, then close
-      // the popup and remove the infoPanel
-      flowItem.addEventListener("calciteFlowItemBack", async () => {
-        viewElement.closePopup();
-        flowItem.remove();
-      });
-
-    }
-
-    // Take each place attribute and display on info panel
-    function setAttribute(heading, icon, validValue) {
-      if (heading && icon && validValue) {
-        const element = document.createElement("calcite-block");
-        element.heading = heading;
-        element.description = validValue;
-        const attributeIcon = document.createElement("calcite-icon");
-        attributeIcon.icon = icon;
-        attributeIcon.slot = "icon-start";
-        attributeIcon.scale = "m";
-        element.appendChild(attributeIcon);
-        flowItem.appendChild(element);
-      }
-    }
+    
+    viewElement.map.layers.add(fuelStationsLayer);
   </script>
 
 </body>

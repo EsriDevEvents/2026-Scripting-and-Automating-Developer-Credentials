@@ -10,11 +10,10 @@ import {
 /**
  * Get environment variables from the .env file. Loading this file is handled by the dotenv package.
  */
-const { ADMIN_API_KEY, USERNAME, ITEM_ID, PORTAL } = process.env as {
+const { ADMIN_API_KEY, USERNAME, ITEM_ID } = process.env as {
   ADMIN_API_KEY: string;
   USERNAME: string;
   ITEM_ID: string;
-  PORTAL: string;
 };
 
 /**
@@ -35,8 +34,7 @@ const apiKeySlot = slotForKey(currentApiKey);
  */
 const authentication = ApiKeyManager.fromKey({
   key: ADMIN_API_KEY,
-  username: USERNAME,
-  portal: PORTAL,
+  username: USERNAME
 });
 
 /**
@@ -48,6 +46,8 @@ THREE_DAYS.setHours(23, 59, 59, 999);
 
 /**
  * Update the API key in the specified slot.
+ * Generating the key in the opposite slot of the currently active key allows us to have a new key 
+ * ready before invalidating the old key, ensuring there is no downtime for the app using the API key.
  */
 const result = await updateApiKey({
   itemId: ITEM_ID,
@@ -70,7 +70,7 @@ writeFile("./app-config.json", JSON.stringify(currentConfig, null, 2));
 console.log(`new key in slot ${apiKeySlot === 1 ? 2 : 1} created ${newApiKey}`);
 
 /**
- * Invalidate the old API key.
+ * Optionally invalidate the old API key.
  */
 const invalidateResponse = await invalidateApiKey({
   itemId: ITEM_ID,

@@ -36,6 +36,7 @@ coverage/
 # Environment variables
 .env
 !.env.template
+dummy-app-config.json
 
 # OS and editor files
 .DS_Store
