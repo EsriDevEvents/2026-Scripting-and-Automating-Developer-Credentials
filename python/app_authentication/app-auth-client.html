@@ -44,7 +44,7 @@
     <div id="map"></div>
     <script type="module">
       const appTokenURL = "https://192.168.1.67:3080/auth";
-      const tokenData = { nonce: 1234, force: 1 };
+      const tokenData = { nonce: 1234, force: 0 };
       let accessToken;
       const tokenResponse = await fetch(appTokenURL, {
         method: "POST",
@@ -56,7 +56,7 @@
       if (tokenResponse.ok) {
         const responseJSON = await tokenResponse.json();
         accessToken = responseJSON.access_token;
-        console.log("Received token:", accessToken);
+        console.log("Received token from server");
       } else {
         console.error("Failed to fetch token:", tokenResponse.statusText);
       }

@@ -62,3 +62,6 @@ __pycache__
 # yarn.lock
 # pnpm-lock.yaml
 python/app-config.json
+python/server-configuration.json
+app-config.json
+python/app_authentication/server-configuration.json

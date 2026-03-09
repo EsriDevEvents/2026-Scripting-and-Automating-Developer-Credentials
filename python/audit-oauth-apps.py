@@ -1,7 +1,5 @@
 from arcgis import GIS,pd
 
-
-
 portal = GIS(profile="DTS2026")
 
 query = f"owner:esri AND title:'BlockedApps Config' AND type: 'Application Configuration'"

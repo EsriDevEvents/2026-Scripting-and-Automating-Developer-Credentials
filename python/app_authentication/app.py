@@ -22,17 +22,18 @@ def is_client_authorized(req) -> bool:
     data = req.get_json(silent=True) or {}
     return data.get("nonce") == 1234
 
-### server application setup ### 
+
+### server application setup ###
 def create_app():
-    #         
+    #
     load_dotenv()
 
     app = Flask(__name__)
     CORS(app)
 
-    # Load configuration from server-configuration.json, which should be in the same directory as this app.py 
+    # Load configuration from server-configuration.json, which should be in the same directory as this app.py
     config_path = (Path(__file__).resolve().parent) / "server-configuration.json"
-    
+
     # Load your server-configuration.json (same as Node)
     with config_path.open("r", encoding="utf-8") as f:
         configuration = json.load(f)
@@ -70,7 +71,6 @@ def create_app():
 
         try:
             token = auth.get_token(force_refresh)
-            # Node logs referer
             referer = request.headers.get("Referer", "")
             if referer:
                 app.logger.info("Giving a token to %s", referer)
@@ -79,15 +79,12 @@ def create_app():
             # Node: response.json(error)
             return jsonify({"error": str(e)}), 500
 
-
     return app
 
 
 if __name__ == "__main__":
     app = create_app()
 
-    # Node reads from /Users/mark4582/ssl/local3.key and .crt and starts HTTPS server.
-    # Flask can do the same using ssl_context=(cert, key)
     port = int(os.getenv("PORT", "3080"))
 
     cert_path = os.getenv("SSL_CERT", "/Users/mark4582/ssl/local3.crt")
