@@ -43,8 +43,8 @@
   <body>
     <div id="map"></div>
     <script type="module">
-      const appTokenURL = "https://192.168.1.67:3080/auth";
-      const tokenData = { nonce: 1234, force: 0 };
+      const appTokenURL = "https://127.0.0.1:3080/auth";
+      const tokenData = { nonce: 1234, force: 1 };
       let accessToken;
       const tokenResponse = await fetch(appTokenURL, {
         method: "POST",

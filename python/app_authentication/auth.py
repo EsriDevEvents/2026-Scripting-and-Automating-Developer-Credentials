@@ -7,6 +7,7 @@ import time
 import json
 import logging
 import sys
+from requests import post
 from arcgis import auth
 from pathlib import Path
 from dotenv import load_dotenv
@@ -247,15 +248,31 @@ def request_token_with_auth():
 
         # Create ClientAuth session with application credentials
         expiration_minutes = configuration.get("tokenExpirationMinutes", 60)
+
+        # native post
+        # token_response = post(
+        #     "https://www.arcgis.com/sharing/oauth2/token",
+        #     data={
+        #         "client_id": client_id,
+        #         "client_secret": client_secret,
+        #         "grant_type": "client_credentials",
+        #         "expiration": expiration_minutes,
+        #         "f": "json",
+        #     },
+        #     headers={"Content-Type": "application/x-www-form-urlencoded"},
+        # )
+        # print(token_response.json())
+
+        # default connection
         # portal = GIS(
         #     client_id=client_id,
         #     client_secret=client_secret,
         # )
-        # token = portal.session.auth.token
+        # portal.auth.session
 
-        # Get the token from the auth session
+        # Get the token from auth session
         esri_auth = auth.EsriOAuth2Auth(
-            base_url="https://www.arcgis.com/sharing/oauth2/token",
+            base_url="https://www.arcgis.com/sharing",
             client_id=client_id,
             client_secret=client_secret,
             expiration=expiration_minutes,
@@ -265,11 +282,11 @@ def request_token_with_auth():
             f"Successfully obtained new token (expires in {expiration_minutes} minutes)"
         )
 
-        # Create response object similar to the JavaScript version
+        # Cache response and send back to client
         complete_response = cache_response(
             {
                 "access_token": token,
-                "expires_in": expiration_minutes * 60,
+                "expires_in": expiration_minutes,
                 "token": token,
             }
         )

@@ -3,5 +3,5 @@
     "logFile": "./debug.log",
     "appTokenBaseURL": "https://www.arcgis.com/sharing/rest",
     "appTokenPath": "/oauth2/token/",
-    "tokenExpirationMinutes": 30
+    "tokenExpirationMinutes": 15
 }
