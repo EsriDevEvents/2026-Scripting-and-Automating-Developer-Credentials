@@ -7,7 +7,7 @@ portal = GIS(profile="DTS2026")
 print(f"connected to {portal.properties.name} as {portal.properties.user.username}")
 
 now = datetime.now(timezone.utc)
-next_30_days = (now + timedelta(days=30)).replace(
+days_in_future = (now + timedelta(days=7)).replace(
     hour=23, minute=59, second=59, microsecond=999000
 )
 
@@ -18,7 +18,7 @@ tokens_request = portal.session.post(
         "f": "json",
         "num": 100,
         "startExpirationDate": int(now.timestamp() * 1000),
-        "endExpirationDate": int(next_30_days.timestamp() * 1000),
+        "endExpirationDate": int(days_in_future.timestamp() * 1000),
     },
 )
 

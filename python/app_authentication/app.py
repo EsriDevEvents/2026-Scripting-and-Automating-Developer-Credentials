@@ -63,7 +63,6 @@ def create_app():
     @app.post("/auth")
     def auth_route():
         if not is_client_authorized(request):
-            # Node: response.send(esriAppAuth.errorResponse(403, "Unauthorized."))
             return jsonify(auth.error_response(403, "Unauthorized.")), 403
 
         data = request.get_json(silent=True) or {}
