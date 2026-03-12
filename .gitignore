@@ -35,7 +35,6 @@ coverage/
 
 # Environment variables
 .env
-.env.*
 !.env.example
 
 # OS and editor files
